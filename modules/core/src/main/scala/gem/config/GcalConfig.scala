@@ -8,8 +8,9 @@ import gem.enum.{GcalArc, GcalContinuum, GcalDiffuser, GcalFilter, GcalShutter}
 
 import java.time.Duration
 
-import scalaz._
-import Scalaz._
+import cats._, cats.data._
+import cats.implicits._
+import mouse.all._
 
 import GcalConfig.GcalLamp
 
@@ -17,20 +18,20 @@ final case class GcalConfig(lamp: GcalLamp, filter: GcalFilter, diffuser: GcalDi
   def continuum: Option[GcalContinuum] =
     lamp.swap.toOption
 
-  def arcs: ISet[GcalArc] =
-    lamp.fold(_ => ISet.empty[GcalArc], _.toISet)
+  def arcs: Set[GcalArc] =
+    lamp.fold(_ => Set.empty, _.toSet)
 }
 
 object GcalConfig {
   // We make this a sealed abstract case class in order to force usage of the
   // companion object constructor.  The OneAnd head is guaranteed to always be
   // the minimum GcalArc in the group.
-  sealed abstract case class GcalArcs(arcs: OneAnd[ISet, GcalArc]) {
+  sealed abstract case class GcalArcs(arcs: OneAnd[Set, GcalArc]) {
     def toList: List[GcalArc] =
       arcs.head :: arcs.tail.toList
 
-    def toISet: ISet[GcalArc] =
-      arcs.tail.insert(arcs.head)
+    def toSet: Set[GcalArc] =
+      arcs.tail + arcs.head
   }
 
   object GcalArcs {
@@ -38,12 +39,12 @@ object GcalConfig {
       */
     @SuppressWarnings(Array("org.wartremover.warts.OptionPartial"))
     def apply(arc0: GcalArc, arcs: List[GcalArc]): GcalArcs = {
-      val all = ISet.fromList(arc0 :: arcs)
-      new GcalArcs(OneAnd(all.elemAt(0).get, all.deleteAt(0))) {}
+      val all = (arc0 :: arcs).toSet
+      new GcalArcs(OneAnd(all.iterator.next, all.drop(1))) {}
     }
   }
 
-  type GcalLamp = GcalContinuum \/ GcalArcs
+  type GcalLamp = Either[GcalContinuum, GcalArcs]
 
   object GcalLamp {
     def fromConfig(continuum: Option[GcalContinuum], arcs: (GcalArc, Boolean)*): Option[GcalLamp] = {
@@ -51,11 +52,11 @@ object GcalConfig {
       val as = arcs.filter(_._2).unzip._1.toList
 
       // Extract the continuum lamp, assuming there are no arcs.
-      val co = continuum.flatMap { c => as.isEmpty option c.left[GcalArcs] }
+      val co = continuum.flatMap { c => as.isEmpty option Left(c) }
 
       // Prepare the arc lamps, assuming there is no continuum.
       val ao = as match {
-        case h :: t if continuum.isEmpty => Some(GcalArcs(h, t).right[GcalContinuum])
+        case h :: t if continuum.isEmpty => Some(Right(GcalArcs(h, t)))
         case _                           => None
       }
 
@@ -63,10 +64,10 @@ object GcalConfig {
     }
 
     def fromContinuum(continuum: GcalContinuum): GcalLamp =
-      continuum.left
+      Left(continuum)
 
     def fromArcs(arc0: GcalArc, arcs: GcalArc*): GcalLamp =
-      GcalArcs(arc0, arcs.toList).right
+      Right(GcalArcs(arc0, arcs.toList))
 
     def unsafeFromConfig(continuum: Option[GcalContinuum], arcs: (GcalArc, Boolean)*): GcalLamp =
       fromConfig(continuum, arcs: _*).getOrElse {

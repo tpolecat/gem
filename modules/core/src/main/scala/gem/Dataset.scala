@@ -5,7 +5,8 @@ package gem
 
 import java.time.Instant
 
-import scalaz._, Scalaz._
+import cats._, cats.data._, cats.implicits._
+import mouse.all._
 
 final case class Dataset(
   label: Dataset.Label,

@@ -6,15 +6,16 @@ package gem
 import org.scalatest.prop.PropertyChecks
 import org.scalatest.{FlatSpec, Matchers}
 
-import scalaz._, Scalaz._
-import scalaz.Ordering._
+import cats._, cats.implicits._
+import cats.kernel.Comparison._
+import cats.kernel.Order.catsKernelOrderingForOrder
 
 @SuppressWarnings(Array("org.wartremover.warts.Equals", "org.wartremover.warts.NonUnitStatements"))
 class LocationSpec extends FlatSpec with Matchers with PropertyChecks with Arbitraries {
   "Construction" should "trim trailing min values from Middle" in {
     forAll { (l: Location.Middle) =>
-      val t = l.toIList
-      t shouldEqual t.dropRightWhile(_ == Int.MinValue)
+      val t = l.toList
+      t shouldEqual t.reverse.dropWhile(_ == Int.MinValue).reverse
     }
   }
 
@@ -32,40 +33,40 @@ class LocationSpec extends FlatSpec with Matchers with PropertyChecks with Arbit
 
   "EQ" should "agree with ==" in {
     forAll { (l0: Location, l1: Location) =>
-      Order[Location].equal(l0, l1) shouldEqual (l0 == l1)
+      Order[Location].eqv(l0, l1) shouldEqual (l0 == l1)
     }
   }
 
   "Find" should "return an empty list if the two positions are the same" in {
     forAll { (l: Location) =>
-      Location.find(10, l, l) shouldEqual IList.empty[Location.Middle]
+      Location.find(10, l, l) shouldEqual Nil
     }
   }
 
   it should "return an empty list if the first position is >= the second" in {
     forAll { (l0: Location, l1: Location) =>
-      val res = Order[Location].order(l0, l1) match {
-        case LT => Location.find(10, l1, l0)
-        case _  => Location.find(10, l0, l1)
+      val res = Order[Location].comparison(l0, l1) match {
+        case LessThan => Location.find(10, l1, l0)
+        case _        => Location.find(10, l0, l1)
       }
-      res shouldEqual IList.empty[Location.Middle]
+      res shouldEqual Nil
     }
   }
 
   it should "find nothing if asked for a negative or 0 count" in {
     forAll { (i: Int, l0: Location, l1: Location) =>
       val negOrZero = -(i.abs)
-      Location.find(negOrZero, l0, l1) shouldEqual IList.empty[Location.Middle]
+      Location.find(negOrZero, l0, l1) shouldEqual Nil
     }
   }
 
   it should "find an arbitrary number of Locations between unequal positions" in {
     forAll { (i: Int, l0: Location, l1: Location) =>
       val count = (i % 10000).abs + 1
-      Order[Location].order(l0, l1) match {
-        case LT => Location.find(count, l0, l1).length shouldEqual count
-        case GT => Location.find(count, l1, l0).length shouldEqual count
-        case EQ => Location.find(count, l0, l1) should have length 0
+      Order[Location].comparison(l0, l1) match {
+        case LessThan    => Location.find(count, l0, l1).length shouldEqual count
+        case GreaterThan => Location.find(count, l1, l0).length shouldEqual count
+        case EqualTo     => Location.find(count, l0, l1) should have length 0
       }
     }
   }
@@ -73,9 +74,9 @@ class LocationSpec extends FlatSpec with Matchers with PropertyChecks with Arbit
   it should "produce a sorted list of Location.Middle" in {
     forAll { (i: Int, l0: Location, l1: Location) =>
       val count = (i % 10000).abs + 1
-      val res   = Order[Location].order(l0, l1) match {
-        case LT => l0 +: Location.find(count, l0, l1).widen[Location] :+ l1
-        case _  => l1 +: Location.find(count, l1, l0).widen[Location] :+ l0
+      val res   = Order[Location].comparison(l0, l1) match {
+        case LessThan => l0 +: Location.find(count, l0, l1).widen[Location] :+ l1
+        case _        => l1 +: Location.find(count, l1, l0).widen[Location] :+ l0
       }
       res.sorted shouldEqual res
     }
@@ -83,7 +84,7 @@ class LocationSpec extends FlatSpec with Matchers with PropertyChecks with Arbit
 
   it should "grow the position list if necessary" in {
     Location.find(1, Location(1, 2), Location(1,3)) match {
-      case ICons(res, INil()) =>
+      case res :: Nil =>
         res.toList match {
           case 1 :: 2 :: p :: Nil =>
             p should not be Int.MinValue

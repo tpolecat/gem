@@ -9,30 +9,13 @@ import gem.enum.Instrument._
 
 import org.scalacheck._
 import org.scalacheck.Arbitrary._
+import org.scalacheck.support.cats._
 
 import java.time.Duration
 
-import scalaz._, Scalaz._
-
+import cats._, cats.implicits._
 
 trait Arbitraries extends gem.enum.Arbitraries {
-
-  // Surely this is already defined somewhere?
-  implicit val functorGen = new Functor[Gen] {
-    def map[A, B](fa: Gen[A])(f: A => B): Gen[B] =
-      fa.map(f)
-  }
-
-  implicit val applicativeGen = new Applicative[Gen] {
-    def ap[A, B](ga: => Gen[A])(gf: => Gen[(A) => B]): Gen[B] =
-      for {
-        f <- gf
-        a <- ga
-      } yield f(a)
-
-    def point[A](a: => A): Gen[A] =
-      Gen.const(a)
-  }
 
   implicit val arbDuration: Arbitrary[Duration] =
     Arbitrary(Gen.posNum[Long].map(Duration.ofMillis))
@@ -228,8 +211,8 @@ trait Arbitraries extends gem.enum.Arbitraries {
 
   implicit val arbGcalLamp: Arbitrary[GcalLamp] =
     Arbitrary(Gen.oneOf(
-      arbitrary[GcalContinuum].map(_.left[GcalArcs]),
-      arbitrary[GcalArcs     ].map(_.right[GcalContinuum])
+      arbitrary[GcalContinuum].map(Left(_)),
+      arbitrary[GcalArcs     ].map(Right(_))
     ))
 
   implicit val arbGcalConfig: Arbitrary[GcalConfig] =

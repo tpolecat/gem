@@ -3,7 +3,8 @@
 
 package gem
 
-import scalaz._, Scalaz._
+import cats._, cats.data._, cats.implicits._
+import mouse.all._
 
 final case class Observation[S, D](
   id: Observation.Id,
@@ -41,13 +42,13 @@ object Observation {
       }
 
     implicit val OrderId: Order[Id] =
-      Order.fromScalaOrdering[Id]
+      Order.fromOrdering[Id]
   }
 
-  implicit val ObservationBitraverse: Bitraverse[Observation] =
-    new Bitraverse[Observation] {
-      def bitraverseImpl[G[_]: Applicative, A, B, C, D](fab: Observation[A,B])(f: A => G[C], g: B => G[D]): G[Observation[C,D]] =
-        (f(fab.staticConfig) |@| fab.steps.traverse(g))((c, d) => fab.copy(staticConfig = c, steps = d))
-    }
+  // implicit val ObservationBitraverse: Bitraverse[Observation] =
+  //   new Bitraverse[Observation] {
+  //     def bitraverseImpl[G[_]: Applicative, A, B, C, D](fab: Observation[A,B])(f: A => G[C], g: B => G[D]): G[Observation[C,D]] =
+  //       (f(fab.staticConfig) |@| fab.steps.traverse(g)) map ((c, d) => fab.copy(staticConfig = c, steps = d))
+  //   }
 
 }

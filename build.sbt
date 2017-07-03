@@ -17,6 +17,7 @@ lazy val catsVersion              = "0.9.0"
 lazy val catsEffectVersion        = "0.3"
 lazy val declineVersion           = "0.2.2"
 lazy val mouseVersion             = "0.9"
+lazy val scalacheckCatsVersion    = "0.3.2"
 
 enablePlugins(GitVersioning)
 
@@ -165,8 +166,10 @@ lazy val core = project
   .settings(commonSettings)
   .settings(
     libraryDependencies ++= Seq(
-      "org.scalaz"  %% "scalaz-core" % scalazVersion,
-      "com.chuusai" %% "shapeless"   % shapelessVersion
+      "org.typelevel"           %% "cats"            % catsVersion,
+      "com.chuusai"             %% "shapeless"       % shapelessVersion,
+      "com.github.benhutchison" %% "mouse"           % mouseVersion,
+      "io.github.amrhassan"     %% "scalacheck-cats" % scalacheckCatsVersion % Test
     ),
     sourceGenerators in Compile +=
       Def.task { gen2((sourceManaged in Compile).value / "gem").unsafePerformIO }.taskValue

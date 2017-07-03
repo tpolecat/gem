@@ -80,8 +80,7 @@ object gen2 {
       |package gem
       |package enum
       |
-      |import scalaz.syntax.equal._
-      |import scalaz.std.string._
+      |import cats.implicits.{ catsSyntaxEq, catsKernelStdOrderForString }
       |
       |${decl(name, records.head._2.fields)}
       |

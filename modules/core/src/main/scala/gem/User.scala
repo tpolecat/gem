@@ -7,7 +7,7 @@ import gem.enum.ProgramRole
 
 import scala.language.implicitConversions
 
-import scalaz._, Scalaz._, scalaz.syntax.Ops
+import cats._, cats.data._, cats.implicits._
 
 final case class User[A](
   id: User.Id,
@@ -22,10 +22,10 @@ object User {
   type Id = String // TODO
 }
 
-trait UserProgramRoleOps extends Ops[User[ProgramRole]] {
+class UserProgramRoleOps(self: User[ProgramRole]) {
 
   def programRoles(pid: Program.Id): Set[ProgramRole] =
-    self.allProgramRoles.get(pid).orZero
+    self.allProgramRoles.get(pid).orEmpty
 
   def hasProgramRole(pid: Program.Id, role: ProgramRole): Boolean =
     programRoles(pid).contains(role)
@@ -33,8 +33,6 @@ trait UserProgramRoleOps extends Ops[User[ProgramRole]] {
 }
 
 trait ToUserProgramRoleOps {
-  implicit def toUserProgramRoleOps(self0: User[ProgramRole]): UserProgramRoleOps =
-    new UserProgramRoleOps {
-      val self: User[ProgramRole] = self0
-    }
+  implicit def toUserProgramRoleOps(self: User[ProgramRole]): UserProgramRoleOps =
+    new UserProgramRoleOps(self)
 }

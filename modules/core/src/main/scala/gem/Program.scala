@@ -3,7 +3,7 @@
 
 package gem
 
-import scalaz._, Scalaz._
+import cats._, cats.data._, cats.implicits._
 import edu.gemini.spModel.core.ProgramId
 
 final case class Program[A](id: Program.Id, title: String, observations: List[A])
@@ -13,11 +13,11 @@ object Program {
   type Id                 = ProgramId
   val  Id: ProgramId.type = ProgramId
 
-  implicit val ProgramTraverse: Traverse[Program] =
-    new Traverse[Program] {
-      def traverseImpl[G[_]: Applicative, A, B](fa: Program[A])(f: A => G[B]): G[Program[B]] =
-        fa.observations.traverse(f).map(os => fa.copy(observations = os))
-    }
+  // implicit val ProgramTraverse: Traverse[Program] =
+  //   new Traverse[Program] {
+  //     def traverseImpl[G[_]: Applicative, A, B](fa: Program[A])(f: A => G[B]): G[Program[B]] =
+  //       fa.observations.traverse(f).map(os => fa.copy(observations = os))
+  //   }
 
   @SuppressWarnings(Array("org.wartremover.warts.ToString"))
   implicit val OrderingProgramId: scala.math.Ordering[Id] =
@@ -31,6 +31,6 @@ object Program {
     }
 
   implicit val OrderProgramId: Order[Id] =
-    Order.fromScalaOrdering[Id]
+    Order.fromOrdering[Id]
 
 }

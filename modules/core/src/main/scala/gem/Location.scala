@@ -4,8 +4,8 @@
 package gem
 
 import scala.annotation.tailrec
-import scalaz._, Scalaz._
-import scalaz.Ordering.{EQ, GT, LT}
+import cats._, cats.data._, cats.implicits._
+import cats.kernel.Comparison, Comparison._
 
 /** A sortable value used to indicate relative positions of a set of associated
   * elements.  `Location`s may be thought of as lists of arbitrary integers
@@ -56,17 +56,15 @@ object Location {
   /** A Location that falls somewhere between the Beginning and End.
     */
   sealed abstract case class Middle(posList: NonEmptyList[Int]) extends Location {
-    def positions: Stream[Int] =
-      posList.toStream #::: Stream.continually(Int.MinValue)
 
-    def toIList: IList[Int] =
-      posList.list
+    def positions: Stream[Int] =
+      toList.toStream #::: Stream.continually(Int.MinValue)
 
     def toList: List[Int] =
-      toIList.toList
+      posList.toList
 
     protected def minPrefixLength: Int =
-      posList.size
+      toList.size
 
   }
 
@@ -93,11 +91,13 @@ object Location {
     fromFoldable(is.toList)
 
   def fromFoldable[F[_]: Foldable](fi: F[Int]): Location =
-    fi.foldRight(IList.empty[Int]) { (i, lst) =>
-      (lst.isEmpty && i === Int.MinValue) ? lst | i +: lst
-    } match {
-      case ICons(h, t) => new Middle(NonEmptyList.nel(h, t)) {}
-      case _           => Beginning
+    fi.foldRight(Eval.now(List.empty[Int])) { (i, lst) =>
+      lst.map { lst =>
+        if (lst.isEmpty && i === Int.MinValue) lst else i :: lst
+      }
+    }.value match {
+      case h :: t => new Middle(NonEmptyList(h, t)) {}
+      case _      => Beginning
     }
 
   /** Assuming not all provided Ints are `Int.MinValue`, produces a `Middle`
@@ -128,7 +128,7 @@ object Location {
     * @return sorted list of `Location` where every element is GT l0 and LT l1
     *         (or vice versa if l0 is GT l1)
     */
-  def find(count: Int, start: Location, end: Location): IList[Middle] = {
+  def find(count: Int, start: Location, end: Location): List[Middle] = {
     val Zero  = BigInt(0)
     val One   = BigInt(1)
     val Max   = BigInt(Int.MaxValue)
@@ -142,16 +142,16 @@ object Location {
 
     def fromBase10(bi: BigInt): Middle = {
       @tailrec
-      def go(rem: BigInt, tail: IList[Int]): Middle = {
+      def go(rem: BigInt, tail: List[Int]): Middle = {
         val (a, b) = rem /% Radix
         val head   = (b + Min).intValue
-        if (a === Zero) new Middle(NonEmptyList.nel(head, tail)) {} else go(a, head +: tail)
+        if (a === Zero) new Middle(NonEmptyList(head, tail)) {} else go(a, head +: tail)
       }
-      go(bi, IList.empty)
+      go(bi, Nil)
     }
 
     @tailrec
-    def go(len: Int): IList[Middle] = {
+    def go(len: Int): List[Middle] = {
       val start10 = toBase10(start, len)
       val end10   = toBase10(end, len)
       val avail   = end10 - start10 - One
@@ -160,28 +160,32 @@ object Location {
         go(len + 1)
       else {
         val incr = (BigDecimal.exact(avail) / (count + 1)).setScale(0, BigDecimal.RoundingMode.CEILING).toBigInt
-        IList.fromList((1 to count).toList.map(i => fromBase10(start10 + (incr * i))))
+        (1 to count).toList.map(i => fromBase10(start10 + (incr * i)))
       }
     }
 
-    if ((count <= 0) || (start >= end)) INil[Middle]
+    if ((count <= 0) || (start >= end)) Nil
     else go(start.minPrefixLength max end.minPrefixLength)
   }
 
   // Type Classes
 
-  implicit val OrderLocation: Order[Location] = Order.order(Function.untupled {
-    case (Beginning,  Beginning )                => EQ
-    case (End,        End       )                => EQ
-    case (Middle(m0), Middle(m1)) if (m0 === m1) => EQ
-    case (l0,         l1        )                =>
-      l0.positions.zip(l1.positions)
-        .find { case (a, b) => a =/= b }
-        .fold[Ordering](EQ) { case (a, b) => if (a < b) LT else GT }
-  })
+  implicit val OrderLocation: Order[Location] =
+    Order.from[Location] { (a, b) =>
+      val comp = (a, b) match {
+        case (Beginning,  Beginning )                => EqualTo
+        case (End,        End       )                => EqualTo
+        case (Middle(m0), Middle(m1)) if (m0 === m1) => EqualTo
+        case (l0,         l1        )                =>
+          l0.positions.zip(l1.positions)
+            .find { case (a, b) => a =!= b }
+            .fold[Comparison](EqualTo) { case (a, b) => if (a < b) LessThan else GreaterThan }
+      }
+      comp.toInt
+    }
 
   implicit val OrderMiddle: Order[Location.Middle] =
     OrderLocation.contramap[Location.Middle](lm => lm: Location)
 
-  implicit val ShowLocation: Show[Location] = Show.shows(_.toString)
+  implicit val ShowLocation: Show[Location] = Show.fromToString
 }

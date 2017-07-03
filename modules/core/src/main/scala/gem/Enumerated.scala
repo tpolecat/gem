@@ -3,8 +3,8 @@
 
 package gem
 
-import scalaz._
-import Scalaz._
+import cats._, cats.data._
+import cats.implicits._
 
 /**
  * Typeclass for an enumerated type with unique string tags.
@@ -15,7 +15,7 @@ trait Enumerated[A] extends Order[A] {
   def tag(a: A): String
   def fromTag(s: String): Option[A] = all.find(tag(_) === s)
   def unsafeFromTag(tag: String): A = fromTag(tag).getOrElse(sys.error("Invalid tag: " + tag))
-  def order(a: A, b: A): Ordering = Order[String].order(tag(a), tag(b))
+  def compare(a: A, b: A): Int = Order[String].compare(tag(a), tag(b))
 }
 
 object Enumerated {

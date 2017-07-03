@@ -9,9 +9,10 @@ import gem.enum.{Instrument, SmartGcalType}
 import org.scalacheck._
 import org.scalacheck.Gen._
 import org.scalacheck.Arbitrary._
+import org.scalacheck.support.cats._
 
-import scalaz._
-import Scalaz._
+import cats._, cats.data._
+import cats.implicits._
 
 trait Arbitraries extends gem.config.Arbitraries {
 
@@ -100,6 +101,6 @@ trait Arbitraries extends gem.config.Arbitraries {
     for {
       count   <- Gen.choose(0, limit)
       obsIds  <- Gen.listOfN(count, Gen.posNum[Int]).map(_.distinct.map(i => Observation.Id(pid, i)))
-      obsList <- obsIds.traverseU(genObservation)
+      obsList <- obsIds.traverse(genObservation)
     } yield obsList
 }

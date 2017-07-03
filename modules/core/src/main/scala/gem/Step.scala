@@ -6,7 +6,7 @@ package gem
 import gem.config._
 import gem.enum.SmartGcalType
 
-import scalaz.Functor
+import cats.Functor
 
 sealed abstract class Step[A] extends Product with Serializable {
   def dynamicConfig: A
