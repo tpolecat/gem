@@ -5,6 +5,7 @@ package gem
 
 import gem.enum.Site
 import gem.math._
+import gem.util.InstantMicros
 import java.time.Instant
 
 /**
@@ -25,11 +26,15 @@ object Track {
   final case class Nonsidereal(ephemerisKey: EphemerisKey, ephemerides: Map[Site, Ephemeris]) extends Track {
 
     override def at(time: Instant, s: Site) =
-      ephemeris(s).flatMap(_.get(time))
+      ephemeris(s).flatMap(_.get(InstantMicros.truncate(time)))
 
     def ephemeris(s: Site): Option[Ephemeris] =
       ephemerides.get(s)
 
+  }
+  object Nonsidereal {
+    def empty(key: EphemerisKey): Nonsidereal =
+      Nonsidereal(key, Map.empty)
   }
 
 }
