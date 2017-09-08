@@ -16,7 +16,8 @@ import doobie._, doobie.implicits._
 import fs2.Stream
 
 object EphemerisDao {
-  import CoordinatesComposite._
+  import DeclinationMeta._
+  import RightAscensionMeta._
   import EnumeratedMeta._
   import EphemerisKeyComposite._
   import TimeMeta._

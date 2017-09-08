@@ -7,47 +7,26 @@ package dao
 import doobie._
 import doobie.implicits._
 import gem.dao.meta._
-import gem.enum._
+import gem.dao.composite._
 import gem.math._
 
 object TargetDao {
+  import DeclinationMeta._
+  import EitherComposite._
   import EnumeratedMeta._
+  import EphemerisKeyComposite._
+  import EpochMeta._
+  import RadialVelocityMeta._
+  import RightAscensionMeta._
 
   object Statements {
 
-    implicit val OptionEphemerisKeyComposite: Composite[Option[EphemerisKey]] =
-      Composite[Option[(EphemerisKeyType, String)]].imap(
-        _.map(p => EphemerisKey.unsafeFromTypeAndDes(p._1, p._2)))(
-        _.map(k => (k.keyType, k.des))
-      )
-
-    implicit val EpochMeta: Meta[Epoch] =
-      Meta[String].xmap(Epoch.unsafeFromString, _.format)
-
-    // m/sec for now
-    implicit val RadialVelocityMeta: Meta[RadialVelocity] =
-      Meta[Int].xmap(RadialVelocity.apply, _.toMetersPerSecond)
-
-    // N.B., local only. Not great.
-    implicit val AngleMeta: Meta[Angle] =
+    // Locally we will map angles (parallax) to microarcseconds
+    private implicit lazy val AngleMeta: Meta[Angle] =
       Meta[Long].xmap(Angle.fromMicroarcseconds, _.toMicroarcseconds)
 
-    implicit val x: Composite[Option[Coordinates]] = null
-
-    implicit def EitherComposite[A, B](
-      implicit coa: Composite[Option[A]],
-               cob: Composite[Option[B]]
-    ): Composite[Either[A, B]] =
-      Composite[(Option[A], Option[B])].imap {
-        case (Some(a), _) => Left(a)
-        case (_, Some(b)) => Right(b)
-        case (None, None) => sys.error("neither value was available")
-      } {
-        case Left(a) => (Some(a), None)
-        case Right(b) => (None, Some(b))
-      }
-
-    implicit val TrackComposite: Composite[Track] =
+    // In this case the Track is laid out as ProperMotion and the EphemerisKey
+    private implicit lazy val TrackComposite: Composite[Track] =
       Composite[Either[ProperMotion, EphemerisKey]].imap[Track] {
         case Left(pm)  => Track.Sidereal(pm)
         case Right(ek) => Track.Nonsidereal.empty(ek)
@@ -56,21 +35,25 @@ object TargetDao {
         case Track.Nonsidereal(ek, _)  => Right(ek)
       }
 
+    /** Flattened `a` as a VALUES argument (...). */
+    def values[A](a: A)(implicit ev: Composite[A]): Fragment =
+      Fragment(List.fill(ev.length)("?").mkString("(", ", ", ")"), a)
+
     def select(id: Int): Query0[Target] =
       sql"""
-        SELECT
-          name,
-          ephemeris_key_type,
-          ephemeris_key,
-          ra_micro,
-          dec_micro,
-          offset_p,
-          offset_q,
-          radial_velocity,
-          parallax
-        FROM  target
-        WHERE id = $id
+        SELECT name,
+               ra_micro, dec_micro, offset_p, offset_q, radial_velocity, parallax, -- proper motion
+               ephemeris_key_type, ephemeris_key                                   -- ephemeris key
+          FROM target
+         WHERE id = $id
       """.query[Target]
+
+    def insert(t: Target): Update0 =
+      (fr"""INSERT INTO target (
+              name,
+              ra_micro, dec_micro, offset_p, offset_q, radial_velocity, parallax, -- proper motion
+              ephemeris_key_type, ephemeris_key                                   -- ephemeris key
+           ) VALUES""" ++ values(t)).update
 
   }
 
