@@ -70,7 +70,6 @@ lazy val gemWarts =
   Warts.allBut(
     Wart.Any,                // false positives
     Wart.Nothing,            // false positives
-    Wart.Null,               // false positives
     Wart.Product,            // false positives
     Wart.Serializable,       // false positives
     Wart.Recursion,          // false positives
