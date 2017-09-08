@@ -6,10 +6,12 @@ package dao
 
 import doobie._
 import doobie.implicits._
+import gem.dao.meta._
 import gem.enum._
 import gem.math._
 
 object TargetDao {
+  import EnumeratedMeta._
 
   object Statements {
 
