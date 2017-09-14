@@ -12,7 +12,7 @@ import java.time.Instant
  * Time/site-parameterized coordinates over a span of time. This generalizes proper motion and
  * ephemerides.
  */
-sealed trait Track {
+sealed trait Track extends Product with Serializable {
   def at(time: Instant, site: Site): Option[Coordinates]
 }
 

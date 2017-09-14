@@ -6,51 +6,65 @@ package dao
 
 import doobie._
 import doobie.implicits._
+import gem.dao.meta._
 import gem.dao.composite._
-import gem.math._
+import gem.enum.TrackType
+import shapeless._
 
 object TargetDao {
-  import ProperMotionComposite._
-  import EitherComposite._
+  import EnumeratedMeta._
   import EphemerisKeyComposite._
+  import ProperMotionComposite._
+  import TaggedCoproduct._
+  import Track._
 
   def select(id: Int): ConnectionIO[Option[Target]] =
     Statements.select(id).option
 
-  def insert(target: Target): ConnectionIO[Int] =
-    Statements.insert(target).withUniqueGeneratedKeys[Int]("id")
+  // def insert(target: Target): ConnectionIO[Int] =
+  //   Statements.insert(target).withUniqueGeneratedKeys[Int]("id")
 
   object Statements {
 
-    // Track sum type is laid out as ProperMotion followed by EphemerisKey
-    private implicit lazy val TrackComposite: Composite[Track] =
-      Composite[Either[ProperMotion, EphemerisKey]].imap[Track] {
-        case Left(pm)  => Track.Sidereal(pm)
-        case Right(ek) => Track.Nonsidereal.empty(ek)
-      } {
-        case Track.Sidereal(pm)        => Left(pm)
-        case Track.Nonsidereal(ek, _)  => Right(ek)
+    // Track is laid out as a tagged coproduct: (tag, sidereal, nonsidereal).
+    private implicit val TaggedTrackComposite: Composite[Track] = {
+
+      // We map only the ephemeris key portion of the nonsidereal target here, and we only need to
+      // consider the Option[Nonsidereal] case because this is what the coproduct encoding needs.
+      implicit val compositeOptionNonsidereal: Composite[Option[Nonsidereal]] =
+        Composite[Option[EphemerisKey]].imap(_.map(Nonsidereal.empty))(_.map(_.ephemerisKey))
+
+      // irritating, widen these
+      val sidereal:    TrackType = TrackType.sidereal;
+      val nonsidereal: TrackType = TrackType.nonsidereal;
+
+      // Construct an encoder for track constructors, tagged by TrackType.
+      val enc = tagged[Sidereal](sidereal) :+: tagged[Nonsidereal](nonsidereal) :+: TNil
+
+      // from enc we get a Composite[Sidereal :+: Nonsidereal :+: CNil], which we map out to Track
+      enc.composite.imap(_.unify) {
+        case t: Sidereal    => enc.inj(t)
+        case t: Nonsidereal => enc.inj(t)
       }
 
-    /** Flattened `a` as a VALUES argument (...). */
-    def values[A](a: A)(implicit ev: Composite[A]): Fragment =
-      Fragment(List.fill(ev.length)("?").mkString("(", ", ", ")"), a)
+    }
 
     def select(id: Int): Query0[Target] =
       sql"""
-        SELECT name,
-               ra_micro, dec_micro, offset_p, offset_q, radial_velocity, parallax, -- proper motion
-               ephemeris_key_type, ephemeris_key                                   -- ephemeris key
+        SELECT name, track_type,
+               ra, dec, epoch, pv_ra, pv_dec, rv, px, -- proper motion
+               e_key_type, e_key                      -- ephemeris key
           FROM target
          WHERE id = $id
       """.query[Target]
 
-    def insert(target: Target): Update0 =
-      (fr"""INSERT INTO target (
-              name,
-              ra_micro, dec_micro, offset_p, offset_q, radial_velocity, parallax, -- proper motion
-              ephemeris_key_type, ephemeris_key                                   -- ephemeris key
-           ) VALUES""" ++ values(target)).update
+    // def insert(target: Target): Update0 =
+    //   (fr"""INSERT INTO target (
+    //           name, track_type,
+    //           ra_str, dec_str,
+    //           ra, dec, pv_ra, pv_dec, rv, px, -- proper motion
+    //           e_key_type, e_key,              -- ephemeris key
+    //        ) VALUES""" ++ values(target)).update
 
   }
 
