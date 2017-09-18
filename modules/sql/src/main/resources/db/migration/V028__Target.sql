@@ -1,7 +1,7 @@
 -- Track type, which is used as a tag. This is not strictly necessary but will make it easier to
 -- write queries later on.
 
-CREATE TYPE e_track_type AS ENUM ('sidereal', 'nonsidereal');
+CREATE TYPE e_track_type AS ENUM ('Sidereal', 'Nonsidereal');
 
 -- Target table, which is mostly the Track encoding as a coproduct. So either the proper motion
 -- columns will be all NULL or the ephemeris key columns will be all NULL. A check constraint
@@ -36,7 +36,7 @@ CREATE TABLE target (
 
   -- ensure that the coproduct encoding is consistent
   CONSTRAINT target_coproduct CHECK ((
-    track_type = 'sidereal'
+    track_type = 'Sidereal'
       AND e_key_type IS NULL
       AND e_key      IS NULL
       AND ra_str     IS NOT NULL
@@ -46,7 +46,7 @@ CREATE TABLE target (
       AND epoch      IS NOT NULL
       -- remaining columns can be null
   ) OR (
-    track_type = 'nonsidereal'
+    track_type = 'Nonsidereal'
       AND e_key_type IS NOT NULL
       AND e_key      IS NOT NULL
       AND ra_str     IS NULL

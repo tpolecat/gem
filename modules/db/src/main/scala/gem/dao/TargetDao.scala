@@ -34,7 +34,6 @@ object TargetDao {
 
     // Track is laid out as a tagged coproduct: (tag, sidereal, nonsidereal).
     private implicit val TaggedTrackComposite: Composite[Track] = {
-      import TrackType._
 
       // We map only the ephemeris key portion of the nonsidereal target here, and we only need to
       // consider the Option[Nonsidereal] case because this is what the coproduct encoding needs.
@@ -42,7 +41,8 @@ object TargetDao {
         Composite[Option[EphemerisKey]].imap(_.map(Nonsidereal.empty))(_.map(_.ephemerisKey))
 
       // Construct an encoder for track constructors, tagged by TrackType.
-      val enc = Tag[Sidereal](sidereal) :+: Tag[Nonsidereal](nonsidereal) :+: TNil
+      val enc = Tag[Sidereal](TrackType.Sidereal)       :+:
+                Tag[Nonsidereal](TrackType.Nonsidereal) :+: TNil
 
       // from enc we get a Composite[Sidereal :+: Nonsidereal :+: CNil], which we map out to Track
       enc.composite.imap(_.unify) {

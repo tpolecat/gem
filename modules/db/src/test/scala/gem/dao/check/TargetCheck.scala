@@ -10,4 +10,5 @@ class TargetCheck extends Check {
             "select" in check(select(0))
   it should "insert" in check(insert(Dummy.target))
   it should "update" in check(update(0, Dummy.target))
+  it should "delete" in check(delete(0))
 }
