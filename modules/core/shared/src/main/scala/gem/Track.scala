@@ -13,7 +13,22 @@ import java.time.Instant
  * ephemerides.
  */
 sealed trait Track extends Product with Serializable {
+  import Track._
+
   def at(time: Instant, site: Site): Option[Coordinates]
+
+  def fold[A](f: ProperMotion => A, g: (EphemerisKey, Map[Site, Ephemeris]) => A): A =
+    this match {
+      case Sidereal(pm)       => f(pm)
+      case Nonsidereal(k, es) => g(k, es)
+    }
+
+  def sidereal: Option[Sidereal] =
+    fold(pm => Some(Sidereal(pm)), (_, _) => None)
+
+  def nonsidereal: Option[Nonsidereal] =
+    fold(_ => None, (k, es) => Some(Nonsidereal(k, es)))
+
 }
 
 object Track {
@@ -33,8 +48,10 @@ object Track {
 
   }
   object Nonsidereal {
+
     def empty(key: EphemerisKey): Nonsidereal =
       Nonsidereal(key, Map.empty)
+
   }
 
 }

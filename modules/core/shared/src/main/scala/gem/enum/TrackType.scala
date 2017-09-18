@@ -12,9 +12,9 @@ import gem.util.Enumerated
  * Enumerated type for track types.
  * @group Enumerations (Generated)
  */
-sealed abstract class TrackType(
+sealed abstract class TrackType (
   val tag: String
-)
+) extends Product with Serializable
 
 object TrackType {
 

@@ -21,25 +21,28 @@ object TargetDao {
   def select(id: Int): ConnectionIO[Option[Target]] =
     Statements.select(id).option
 
-  // def insert(target: Target): ConnectionIO[Int] =
-  //   Statements.insert(target).withUniqueGeneratedKeys[Int]("id")
+  def insert(target: Target): ConnectionIO[Int] =
+    Statements.insert(target).withUniqueGeneratedKeys[Int]("id")
+
+  def update(id: Int, target: Target): ConnectionIO[Int] =
+    Statements.update(id, target).run
+
+  def delete(id: Int): ConnectionIO[Int] =
+    Statements.delete(id).run
 
   object Statements {
 
     // Track is laid out as a tagged coproduct: (tag, sidereal, nonsidereal).
     private implicit val TaggedTrackComposite: Composite[Track] = {
+      import TrackType._
 
       // We map only the ephemeris key portion of the nonsidereal target here, and we only need to
       // consider the Option[Nonsidereal] case because this is what the coproduct encoding needs.
       implicit val compositeOptionNonsidereal: Composite[Option[Nonsidereal]] =
         Composite[Option[EphemerisKey]].imap(_.map(Nonsidereal.empty))(_.map(_.ephemerisKey))
 
-      // irritating, widen these
-      val sidereal:    TrackType = TrackType.sidereal;
-      val nonsidereal: TrackType = TrackType.nonsidereal;
-
       // Construct an encoder for track constructors, tagged by TrackType.
-      val enc = tagged[Sidereal](sidereal) :+: tagged[Nonsidereal](nonsidereal) :+: TNil
+      val enc = Tag[Sidereal](sidereal) :+: Tag[Nonsidereal](nonsidereal) :+: TNil
 
       // from enc we get a Composite[Sidereal :+: Nonsidereal :+: CNil], which we map out to Track
       enc.composite.imap(_.unify) {
@@ -48,6 +51,13 @@ object TargetDao {
       }
 
     }
+
+    // base coordinates formatted as readable strings, if target is sidereal
+    private def stringyCoordinates(t: Target): Option[(String, String)] =
+      t.track.sidereal.map { st =>
+        val cs = st.properMotion.baseCoordinates
+        (cs.ra.format, cs.dec.format)
+      }
 
     def select(id: Int): Query0[Target] =
       sql"""
@@ -58,13 +68,25 @@ object TargetDao {
          WHERE id = $id
       """.query[Target]
 
-    // def insert(target: Target): Update0 =
-    //   (fr"""INSERT INTO target (
-    //           name, track_type,
-    //           ra_str, dec_str,
-    //           ra, dec, pv_ra, pv_dec, rv, px, -- proper motion
-    //           e_key_type, e_key,              -- ephemeris key
-    //        ) VALUES""" ++ values(target)).update
+    def insert(target: Target): Update0 =
+      (fr"""INSERT INTO target (
+              name, track_type,
+              ra, dec, epoch, pv_ra, pv_dec, rv, px, -- proper motion
+              e_key_type, e_key,                     -- ephemeris key
+              ra_str, dec_str                        -- stringy coordinates
+           ) VALUES""" ++ values((target, stringyCoordinates(target)))).update
+
+    def update(id: Int, target: Target): Update0 =
+      (fr"""UPDATE target
+            SET (name, track_type,
+                 ra, dec, epoch, pv_ra, pv_dec, rv, px, -- proper motion
+                 e_key_type, e_key,                     -- ephemeris key
+                 ra_str, dec_str                        -- stringy coordinates
+            ) =""" ++ values((target, stringyCoordinates(target))) ++
+       fr"WHERE id = $id").update
+
+    def delete(id: Int): Update0 =
+      sql"DELETE FROM target WHERE id=$id".update
 
   }
 

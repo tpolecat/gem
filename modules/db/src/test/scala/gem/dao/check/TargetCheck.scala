@@ -8,5 +8,6 @@ class TargetCheck extends Check {
   import TargetDao.Statements._
   "TargetDao.Statements" should
             "select" in check(select(0))
-  // it should "insert" in check(insert(Dummy.target))
+  it should "insert" in check(insert(Dummy.target))
+  it should "update" in check(update(0, Dummy.target))
 }
