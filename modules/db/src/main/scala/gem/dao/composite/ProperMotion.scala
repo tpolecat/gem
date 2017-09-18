@@ -21,7 +21,7 @@ trait ProperMotionComposite {
 object ProperMotionComposite extends ProperMotionComposite
 
 /** Derivation of Composite instances for ProperMotion. */
-object ProperMotionCompositeLemmas {
+private object ProperMotionCompositeLemmas {
   import CoordinatesComposite._
   import EnumeratedMeta._
   import EpochMeta._
