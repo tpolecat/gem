@@ -268,7 +268,8 @@ lazy val json = project
     libraryDependencies ++= Seq(
       "io.circe" %% "circe-core"    % circeVersion,
       "io.circe" %% "circe-generic" % circeVersion,
-      "io.circe" %% "circe-parser"  % circeVersion
+      "io.circe" %% "circe-parser"  % circeVersion,
+      "io.circe" %% "circe-java8"   % circeVersion
     )
   )
 
