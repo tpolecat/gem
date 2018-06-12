@@ -13,7 +13,7 @@ import io.circe.generic.semiauto._
 trait EphemerisJson {
   import coordinates._
   import offset._
-  import timestamp._
+  import time._
 
   implicit val EphemerisCoordinatesEncoder: Encoder[EphemerisCoordinates] = deriveEncoder
   implicit val EphemerisCoordinatesDecoder: Decoder[EphemerisCoordinates] = deriveDecoder

@@ -242,11 +242,11 @@ object ProperMotionExample {
       Some(Angle.fromMicroarcseconds(545620L))
     )
 
-  def main(args: Array[String]): Unit = {
-    (0.0 to 10.0 by 1.0) foreach { y =>
-      val cs = Barnard.plusYears(y).baseCoordinates
-      println(s"${2000 + y} -> $cs") // scalastyle:off console.io
-    }
-  }
+  // def main(args: Array[String]): Unit = {
+  //   (0.0 to 10.0 by 1.0) foreach { y =>
+  //     val cs = Barnard.plusYears(y).baseCoordinates
+  //     println(s"${2000 + y} -> $cs") // scalastyle:off console.io
+  //   }
+  // }
 
 }

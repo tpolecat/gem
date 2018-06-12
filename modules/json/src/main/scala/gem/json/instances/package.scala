@@ -12,6 +12,7 @@ package object instances {
        with OffsetJson
        with ProperMotionJson
        with TargetJson
+       with TimeJson
 
 }
 
